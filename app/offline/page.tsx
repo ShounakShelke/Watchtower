@@ -1,0 +1,1 @@
+export default function Offline(){return <main className="error"><h1>OFFLINE</h1><p>Watchtower’s saved shell is available. Live calendar, intelligence, AI, and new database changes need a connection.</p></main>}

@@ -1,0 +1,3 @@
+import {NextResponse} from "next/server"; import {z} from "zod"; import {prisma} from "@/lib/prisma"; import {user} from "@/lib/data";
+const schema=z.object({name:z.string().min(1).max(120),description:z.string().max(2000).optional(),goal:z.string().max(1000).optional(),priority:z.enum(['CRITICAL','HIGH','MEDIUM','LOW']).default('MEDIUM'),deadline:z.string().datetime().optional()});
+export async function POST(r:Request){try{const data=schema.parse(await r.json());const u=await user();return NextResponse.json(await prisma.project.create({data:{...data,userId:u.id,deadline:data.deadline?new Date(data.deadline):undefined}}),{status:201})}catch{return NextResponse.json({error:'Invalid project.'},{status:400})}}

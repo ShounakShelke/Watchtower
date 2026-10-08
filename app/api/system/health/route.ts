@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';import {prisma} from '@/lib/prisma';import {authEnabled} from '@/lib/auth';
+export async function GET(){let database=false;try{await prisma.$queryRaw`SELECT 1`;database=true}catch{}return NextResponse.json({database,auth:authEnabled(),gemini:Boolean(process.env.GEMINI_API_KEY),groq:Boolean(process.env.GROQ_API_KEY),google:Boolean(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET),gdelt:true,notifications:true})}

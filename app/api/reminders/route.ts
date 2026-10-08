@@ -1,0 +1,3 @@
+import {NextResponse} from 'next/server';import {z} from 'zod';import {prisma} from '@/lib/prisma';import {user} from '@/lib/data';
+const schema=z.object({title:z.string().min(1).max(160),description:z.string().max(1000).optional(),triggerAt:z.string().datetime(),priority:z.enum(['CRITICAL','HIGH','MEDIUM','LOW']).default('MEDIUM')});
+export async function POST(r:Request){try{const b=schema.parse(await r.json());const u=await user();return NextResponse.json(await prisma.reminder.create({data:{...b,userId:u.id,triggerAt:new Date(b.triggerAt)}}),{status:201})}catch{return NextResponse.json({error:'Invalid reminder.'},{status:400})}}

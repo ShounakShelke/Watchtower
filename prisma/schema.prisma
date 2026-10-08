@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  COMPLETE
+  ARCHIVED
+}
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+enum ReminderStatus {
+  PENDING
+  DISMISSED
+  SENT
+}
+enum EventType {
+  CLASS
+  MEETING
+  APPOINTMENT
+  TRAVEL
+  STUDY
+  PROJECT
+  BREAK
+  OTHER
+}
+
+model User {
+ id String @id @default(cuid())
+ email String @unique
+ displayName String @default("Shounak")
+ timezone String @default("Asia/Kolkata")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ projects Project[]
+ tasks Task[]
+ activities Activity[]
+ reminders Reminder[]
+ calendarEvents CalendarEvent[]
+ memories Memory[]
+ knowledge Knowledge[]
+ focusSessions FocusSession[]
+}
+model Project {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ name String
+ description String?
+ goal String?
+ status ProjectStatus @default(ACTIVE)
+ progress Int @default(0)
+ priority Priority @default(MEDIUM)
+ deadline DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ milestones Milestone[]
+ tasks Task[]
+ activities Activity[]
+ focusSessions FocusSession[]
+}
+model Milestone {
+ id String @id @default(cuid())
+ projectId String
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ title String
+ description String?
+ status TaskStatus @default(TODO)
+ progress Int @default(0)
+ dueDate DateTime?
+ position Int @default(0)
+ completedAt DateTime?
+ tasks Task[]
+}
+model Task {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ projectId String?
+ project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
+ milestoneId String?
+ milestone Milestone? @relation(fields:[milestoneId],references:[id],onDelete:SetNull)
+ title String
+ description String?
+ status TaskStatus @default(TODO)
+ priority Priority @default(MEDIUM)
+ dueDate DateTime?
+ estimatedMinutes Int?
+ actualMinutes Int @default(0)
+ source String @default("manual")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ completedAt DateTime?
+ activities Activity[]
+ focusSessions FocusSession[]
+}
+model CalendarEvent {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ externalId String?
+ provider String @default("google")
+ title String
+ description String?
+ startTime DateTime
+ endTime DateTime
+ eventType EventType @default(OTHER)
+ isFixed Boolean @default(true)
+ syncedAt DateTime @default(now())
+}
+model Reminder {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ title String
+ description String?
+ triggerAt DateTime
+ type String @default("intelligent")
+ priority Priority @default(MEDIUM)
+ status ReminderStatus @default(PENDING)
+ relatedProjectId String?
+ relatedTaskId String?
+ createdAt DateTime @default(now())
+}
+model Activity {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ projectId String?
+ project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
+ taskId String?
+ task Task? @relation(fields:[taskId],references:[id],onDelete:SetNull)
+ activityType String
+ description String
+ durationMinutes Int?
+ metadata Json?
+ createdAt DateTime @default(now())
+}
+model Memory {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ category String
+ key String
+ value String
+ confidence Float @default(0.5)
+ source String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([userId,key])
+}
+model Knowledge {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ title String
+ content String
+ sourceType String
+ sourceReference String?
+ metadata Json?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([userId,sourceType])
+}
+model FocusSession {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ projectId String?
+ project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
+ taskId String?
+ task Task? @relation(fields:[taskId],references:[id],onDelete:SetNull)
+ startedAt DateTime @default(now())
+ endedAt DateTime?
+ durationMinutes Int @default(0)
+ notes String?
+}
+model NewsItem {
+ id String @id @default(cuid())
+ category String
+ title String
+ summary String
+ sourceUrl String
+ publishedAt DateTime?
+ importance Int @default(0)
+ relevance String?
+ fetchedAt DateTime @default(now())
+}
+model Integration {
+ id String @id @default(cuid())
+ userId String
+ provider String
+ status String @default("DISCONNECTED")
+ metadata Json?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([userId,provider])
+}
+model NotificationPreference {
+ id String @id @default(cuid())
+ userId String @unique
+ browserEnabled Boolean @default(false)
+ importantEnabled Boolean @default(true)
+ urgentEnabled Boolean @default(true)
+ dailyBriefingEnabled Boolean @default(true)
+ weeklyReviewEnabled Boolean @default(true)
+}

@@ -1,0 +1,3 @@
+import Link from "next/link";
+const items=[['HOME','/'],['AGENT','/agent'],['TASKS','/tasks'],['PROJECTS','/projects'],['CALENDAR','/calendar'],['KNOWLEDGE','/knowledge'],['INTELLIGENCE','/intelligence'],['ANALYTICS','/analytics'],['FOCUS','/focus'],['SETTINGS','/settings']];
+export function AppShell({children,active}:{children:React.ReactNode;active:string}){return <main><aside><Link href="/" className="brand">WATCH<br/>TOWER</Link><nav>{items.map(([name,href])=><Link className={active===name?'active':''} href={href} key={name}>{name}</Link>)}</nav><div className="system">SYSTEM ONLINE<br/><span>PRIVATE WORKSPACE</span></div></aside><section className="shell">{children}</section></main>}
