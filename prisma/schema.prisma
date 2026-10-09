@@ -1,9 +1,10 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 enum ProjectStatus {
@@ -12,6 +13,7 @@ enum ProjectStatus {
   COMPLETE
   ARCHIVED
 }
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -19,17 +21,20 @@ enum TaskStatus {
   DONE
   CANCELLED
 }
+
 enum Priority {
   CRITICAL
   HIGH
   MEDIUM
   LOW
 }
+
 enum ReminderStatus {
   PENDING
   DISMISSED
   SENT
 }
+
 enum EventType {
   CLASS
   MEETING
@@ -41,183 +46,526 @@ enum EventType {
   OTHER
 }
 
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  REVISED
+  COMPLETED
+  ABANDONED
+}
+
+enum PlanItemType {
+  FIXED
+  RECOMMENDED
+  OPTIONAL
+  BUFFER
+  REST
+}
+
+enum ActionRequestStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  EXECUTED
+  FAILED
+  EXPIRED
+}
+
+enum MemoryCandidateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
 model User {
- id String @id @default(cuid())
- email String @unique
- displayName String @default("Shounak")
- timezone String @default("Asia/Kolkata")
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- projects Project[]
- tasks Task[]
- activities Activity[]
- reminders Reminder[]
- calendarEvents CalendarEvent[]
- memories Memory[]
- knowledge Knowledge[]
- focusSessions FocusSession[]
+  id                      String                  @id @default(cuid())
+  email                   String                  @unique
+  displayName             String                  @default("Shounak")
+  timezone                String                  @default("Asia/Kolkata")
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  projects                Project[]
+  tasks                   Task[]
+  activities              Activity[]
+  reminders               Reminder[]
+  calendarEvents          CalendarEvent[]
+  memories                Memory[]
+  knowledge               Knowledge[]
+  focusSessions           FocusSession[]
+  agentSessions           AgentSession[]
+  actionRequests          AgentActionRequest[]
+  observations            AgentObservation[]
+  memoryCandidates        MemoryCandidate[]
+  preferences             UserPreference[]
+  behaviorPatterns        BehaviorPattern[]
+  calendarSyncState       CalendarSyncState?
+  dailyPlans              DailyPlan[]
+  notificationEvents      NotificationEvent[]
+  integrations            Integration[]
+  notificationPreference  NotificationPreference?
 }
+
 model Project {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- name String
- description String?
- goal String?
- status ProjectStatus @default(ACTIVE)
- progress Int @default(0)
- priority Priority @default(MEDIUM)
- deadline DateTime?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- milestones Milestone[]
- tasks Task[]
- activities Activity[]
- focusSessions FocusSession[]
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  goal          String?
+  status        ProjectStatus  @default(ACTIVE)
+  progress      Int            @default(0)
+  priority      Priority       @default(MEDIUM)
+  deadline      DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  milestones    Milestone[]
+  tasks         Task[]
+  activities    Activity[]
+  focusSessions FocusSession[]
+
+  @@index([userId, status])
 }
+
 model Milestone {
- id String @id @default(cuid())
- projectId String
- project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
- title String
- description String?
- status TaskStatus @default(TODO)
- progress Int @default(0)
- dueDate DateTime?
- position Int @default(0)
- completedAt DateTime?
- tasks Task[]
+  id          String     @id @default(cuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  progress    Int        @default(0)
+  dueDate     DateTime?
+  position    Int        @default(0)
+  completedAt DateTime?
+  tasks       Task[]
+
+  @@index([projectId, position])
 }
+
 model Task {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- projectId String?
- project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
- milestoneId String?
- milestone Milestone? @relation(fields:[milestoneId],references:[id],onDelete:SetNull)
- title String
- description String?
- status TaskStatus @default(TODO)
- priority Priority @default(MEDIUM)
- dueDate DateTime?
- estimatedMinutes Int?
- actualMinutes Int @default(0)
- source String @default("manual")
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- completedAt DateTime?
- activities Activity[]
- focusSessions FocusSession[]
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  milestoneId      String?
+  milestone        Milestone?     @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  status           TaskStatus     @default(TODO)
+  priority         Priority       @default(MEDIUM)
+  dueDate          DateTime?
+  estimatedMinutes Int?
+  actualMinutes    Int            @default(0)
+  source           String         @default("manual")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  completedAt      DateTime?
+  activities       Activity[]
+  focusSessions    FocusSession[]
+  planItems        PlanItem[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
 }
+
 model CalendarEvent {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- externalId String?
- provider String @default("google")
- title String
- description String?
- startTime DateTime
- endTime DateTime
- eventType EventType @default(OTHER)
- isFixed Boolean @default(true)
- syncedAt DateTime @default(now())
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalId  String?
+  provider    String     @default("google")
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  eventType   EventType  @default(OTHER)
+  isFixed     Boolean    @default(true)
+  syncedAt    DateTime   @default(now())
+  planItems   PlanItem[]
+
+  @@index([userId, startTime])
 }
+
 model Reminder {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- title String
- description String?
- triggerAt DateTime
- type String @default("intelligent")
- priority Priority @default(MEDIUM)
- status ReminderStatus @default(PENDING)
- relatedProjectId String?
- relatedTaskId String?
- createdAt DateTime @default(now())
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  triggerAt        DateTime
+  type             String         @default("intelligent")
+  priority         Priority       @default(MEDIUM)
+  status           ReminderStatus @default(PENDING)
+  relatedProjectId String?
+  relatedTaskId    String?
+  createdAt        DateTime       @default(now())
+
+  @@index([userId, status, triggerAt])
 }
+
 model Activity {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- projectId String?
- project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
- taskId String?
- task Task? @relation(fields:[taskId],references:[id],onDelete:SetNull)
- activityType String
- description String
- durationMinutes Int?
- metadata Json?
- createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  taskId          String?
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  activityType    String
+  description     String
+  durationMinutes Int?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
+
 model Memory {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- category String
- key String
- value String
- confidence Float @default(0.5)
- source String
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([userId,key])
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   String
+  key        String
+  value      String
+  confidence Float    @default(0.5)
+  source     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId, category])
 }
+
 model Knowledge {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- title String
- content String
- sourceType String
- sourceReference String?
- metadata Json?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@index([userId,sourceType])
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  content         String
+  sourceType      String
+  sourceReference String?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  embeddings      KnowledgeEmbedding[]
+
+  @@index([userId, sourceType])
 }
+
 model FocusSession {
- id String @id @default(cuid())
- userId String
- user User @relation(fields:[userId],references:[id],onDelete:Cascade)
- projectId String?
- project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
- taskId String?
- task Task? @relation(fields:[taskId],references:[id],onDelete:SetNull)
- startedAt DateTime @default(now())
- endedAt DateTime?
- durationMinutes Int @default(0)
- notes String?
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  taskId          String?
+  task            Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  durationMinutes Int       @default(0)
+  notes           String?
+
+  @@index([userId, startedAt])
 }
+
 model NewsItem {
- id String @id @default(cuid())
- category String
- title String
- summary String
- sourceUrl String
- publishedAt DateTime?
- importance Int @default(0)
- relevance String?
- fetchedAt DateTime @default(now())
+  id          String             @id @default(cuid())
+  category    String
+  title       String
+  summary     String
+  sourceUrl   String
+  publishedAt DateTime?
+  importance  Int                @default(0)
+  relevance   String?
+  fetchedAt   DateTime           @default(now())
+  clusters    NewsClusterItem[]
+
+  @@index([category, publishedAt])
 }
+
 model Integration {
- id String @id @default(cuid())
- userId String
- provider String
- status String @default("DISCONNECTED")
- metadata Json?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([userId,provider])
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  String
+  status    String   @default("DISCONNECTED")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
 }
+
 model NotificationPreference {
- id String @id @default(cuid())
- userId String @unique
- browserEnabled Boolean @default(false)
- importantEnabled Boolean @default(true)
- urgentEnabled Boolean @default(true)
- dailyBriefingEnabled Boolean @default(true)
- weeklyReviewEnabled Boolean @default(true)
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  browserEnabled       Boolean @default(false)
+  importantEnabled     Boolean @default(true)
+  urgentEnabled        Boolean @default(true)
+  dailyBriefingEnabled Boolean @default(true)
+  weeklyReviewEnabled  Boolean @default(true)
+}
+
+// ----------------- V2 EXPANSIONS -----------------
+
+model AgentSession {
+  id             String               @id @default(cuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String               @default("Agent Session")
+  status         String               @default("ACTIVE")
+  contextHash    String?
+  startedAt      DateTime             @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  messages       AgentMessage[]
+  toolCalls      AgentToolCall[]
+  actionRequests AgentActionRequest[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model AgentMessage {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String       // user, assistant, system, tool
+  content   String
+  provider  String?      // gemini, groq, deterministic
+  model     String?
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model AgentToolCall {
+  id              String       @id @default(cuid())
+  sessionId       String
+  session         AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  messageId       String?
+  toolName        String
+  argumentsJson   Json?
+  resultJson      Json?
+  permissionLevel String       // READ, INTERNAL_WRITE, EXTERNAL_WRITE
+  status          String       // SUCCESS, ERROR, NEEDS_CONFIRMATION
+  latencyMs       Int?
+  createdAt       DateTime     @default(now())
+
+  @@index([sessionId, toolName])
+}
+
+model AgentActionRequest {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId         String?
+  session           AgentSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  toolName          String
+  actionType        String
+  targetJson        Json?
+  beforeJson        Json?
+  proposedAfterJson Json?
+  status            ActionRequestStatus @default(PENDING)
+  expiresAt         DateTime?
+  confirmedAt       DateTime?
+  executedAt        DateTime?
+  failureReason     String?
+  createdAt         DateTime            @default(now())
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model AgentObservation {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  summary    String
+  source     String
+  confidence Float    @default(0.5)
+  metadata   Json?
+  observedAt DateTime @default(now())
+
+  @@index([userId, type])
+}
+
+model MemoryCandidate {
+  id              String                @id @default(cuid())
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        String
+  key             String
+  value           String
+  confidence      Float                 @default(0.5)
+  reason          String?
+  sourceType      String
+  sourceReference String?
+  status          MemoryCandidateStatus @default(PENDING)
+  createdAt       DateTime              @default(now())
+  reviewedAt      DateTime?
+
+  @@index([userId, status])
+}
+
+model UserPreference {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key        String
+  value      String
+  source     String   @default("user")
+  confidence Float    @default(1.0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, key])
+}
+
+model BehaviorPattern {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patternType    String
+  valueJson      Json
+  confidence     Float    @default(0.5)
+  sampleCount    Int      @default(1)
+  lastObservedAt DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, patternType])
+}
+
+model CalendarSyncState {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider              String    @default("google")
+  accountReference      String?
+  lastFullSyncAt        DateTime?
+  lastIncrementalSyncAt DateTime?
+  syncTokenEncrypted    String?
+  status                String    @default("DISCONNECTED")
+  lastError             String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model DailyPlan {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  status      PlanStatus     @default(ACTIVE)
+  summary     String?
+  generatedBy String         @default("agent")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  items       PlanItem[]
+  revisions   PlanRevision[]
+
+  @@index([userId, date])
+}
+
+model PlanItem {
+  id              String         @id @default(cuid())
+  planId          String
+  plan            DailyPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskId          String?
+  task            Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  calendarEventId String?
+  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  type            PlanItemType   @default(RECOMMENDED)
+  title           String
+  startAt         DateTime?
+  endAt           DateTime?
+  durationMinutes Int?
+  priority        Priority       @default(MEDIUM)
+  rationale       String?
+  status          String         @default("PENDING")
+  order           Int            @default(0)
+
+  @@index([planId, order])
+}
+
+model PlanRevision {
+  id           String    @id @default(cuid())
+  planId       String
+  plan         DailyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  trigger      String
+  reason       String
+  snapshotJson Json
+  createdAt    DateTime  @default(now())
+
+  @@index([planId, createdAt])
+}
+
+model NewsSource {
+  id         String   @id @default(cuid())
+  name       String
+  type       String   // gdelt, rss, custom
+  url        String
+  enabled    Boolean  @default(true)
+  configJson Json?
+  createdAt  DateTime @default(now())
+}
+
+model NewsCluster {
+  id             String            @id @default(cuid())
+  canonicalTitle String
+  summary        String
+  importance     Int               @default(0)
+  relevance      String?
+  topic          String            // AI_ML, MOTORSPORT, PERSONAL
+  firstSeenAt    DateTime          @default(now())
+  lastSeenAt     DateTime          @default(now())
+  items          NewsClusterItem[]
+
+  @@index([topic, importance])
+}
+
+model NewsClusterItem {
+  clusterId  String
+  cluster    NewsCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  newsItemId String
+  newsItem   NewsItem    @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+
+  @@id([clusterId, newsItemId])
+}
+
+model NotificationEvent {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String    // deadline, overdue, review, sync, alert
+  title       String
+  body        String
+  priority    Priority  @default(MEDIUM)
+  reason      String?
+  status      String    @default("PENDING")
+  scheduledAt DateTime  @default(now())
+  sentAt      DateTime?
+  expiresAt   DateTime?
+  dedupeKey   String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, status])
+  @@index([dedupeKey])
+}
+
+model KnowledgeEmbedding {
+  id          String    @id @default(cuid())
+  knowledgeId String
+  knowledge   Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  embedding   Json      // vector array of numbers
+  model       String    @default("text-embedding-004")
+  createdAt   DateTime  @default(now())
+
+  @@index([knowledgeId])
 }

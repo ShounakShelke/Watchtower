@@ -4,10 +4,10 @@ param()
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
-Write-Host "`nWATCHTOWER V1 - LOCAL LAUNCHER`n" -ForegroundColor White
+Write-Host "`nWATCHTOWER V2 - LOCAL LAUNCHER`n" -ForegroundColor White
 
-if (-not (Test-Path '.env.local')) {
-  Write-Host 'ERROR: .env.local is missing.' -ForegroundColor Red
+if (-not (Test-Path '.env.local') -and -not (Test-Path '.env')) {
+  Write-Host 'ERROR: No environment configuration found (.env.local or .env).' -ForegroundColor Red
   Write-Host 'Copy .env.example to .env.local and configure DATABASE_URL first.'
   Read-Host 'Press Enter to exit'
   exit 1
@@ -23,7 +23,7 @@ Write-Host 'Generating Prisma client...' -ForegroundColor Yellow
 npm run db:generate
 if ($LASTEXITCODE -ne 0) { throw 'Prisma client generation failed.' }
 
-Write-Host "`nStarting Watchtower at http://localhost:3000" -ForegroundColor Green
+Write-Host "`nStarting Watchtower V2 at http://localhost:3000" -ForegroundColor Green
 Write-Host 'Keep this window open while using Watchtower.' -ForegroundColor DarkGray
 Start-Process 'http://localhost:3000'
 npm run dev

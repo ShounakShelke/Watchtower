@@ -1,36 +1,98 @@
-# Watchtower V1
+# Watchtower V2 — Personal AI Operating System & Autonomous Digital Agent
 
-Watchtower is a private, single-user personal operating system. It ranks local tasks against deadlines and project state, provides a terminal-first agent interface, records focus, and is designed to add Gemini/Groq, Google Calendar, and news providers without exposing keys to the browser.
+Watchtower V2 is a private, single-user personal operating system and digital command center. It unifies calendar commitments, project states, ranked tasks, and personal knowledge into an authoritative decision layer:
+> **"What should I do now, why should I do it, and can Watchtower take care of the rest?"**
 
-## Run locally
+---
 
-1. Copy `.env.example` to `.env.local` and supply a PostgreSQL `DATABASE_URL`.
-2. Install packages: `npm install`.
-3. Generate and migrate the database: `npm run db:generate`, then `npm run db:migrate`.
-4. Optional development data: `npm run db:seed`.
-5. Start: `npm run dev`.
+## Key Capabilities in V2
 
-On Windows, you can instead double-click `start-watchtower.bat` or run `./Start-Watchtower.ps1` from PowerShell. Both launchers validate the environment and start the app without applying database migrations or destructive resets.
+1. **Autonomous Agent Orchestrator**:
+   - Multi-turn tool calling with Gemini 2.0 Flash (primary), Groq Llama 3.3 70B (fallback), and a transparent deterministic rule engine (offline fallback).
+   - Generates user-safe activity traces (`◉ Reading calendar`, `◉ Checking deadlines`) without exposing private model scratchpads.
 
-## What works without external credentials
+2. **Server-Side 3-Tier Permission Guardrails**:
+   - `READ`: Executes database and context queries directly.
+   - `INTERNAL_WRITE`: Automatically updates internal state (tasks, project progress, daily plans) and records activity audit logs.
+   - `EXTERNAL_WRITE`: Strictly stages mutations (e.g., Google Calendar create/edit/delete/move) into `AgentActionRequest` records requiring explicit user confirmation before touching external APIs.
 
-- Responsive dashboard and command-terminal UI
-- PostgreSQL-backed projects, tasks, activity, memories, knowledge and focus sessions schema
-- Deterministic, transparent priority ranking
-- Agent recommendations, rest behavior, weekly review, task creation, and confirmation-only calendar actions
-- Markdown history segmentation/import endpoint
-- Focus timer and PWA manifest
+3. **Dynamic Daily Planning & Replanning**:
+   - Flagship "Plan My Day" engine allocates ordered time blocks (`FIXED`, `RECOMMENDED`, `OPTIONAL`, `BUFFER`, `REST`).
+   - Dynamic replanning adjusts to real-world interruptions ("I finished early", "I only have 1 hour", "I'm tired") while archiving plan revisions.
+   - End-of-day rest sufficiency check ("Have I done enough today?") provides positive permission to stop and recharge.
 
-## Integration state
+4. **Bi-directional Google Calendar Sync**:
+   - AES-256-GCM encrypted OAuth refresh tokens and sync tokens stored securely at rest.
+   - Two-way sync, scheduling conflict detection, and interactive before/after action confirmation cards.
 
-Google Calendar, Gemini, Groq, live news, browser notifications, and production authentication each have environment-variable/configuration placeholders but are deliberately shown as disconnected until configured. This prevents fake success states. The agent’s deterministic database path remains available without AI keys.
+5. **Memory & Hybrid Semantic Retrieval**:
+   - Permanent vs. working vs. historical knowledge hierarchy.
+   - Hybrid semantic vector retrieval (`pgvector` / Gemini embedding) with full-text lexical fallback.
+   - ChatGPT history ingestion parsing conversation segments, extracting decisions, and staging memory candidates for human review and approval.
 
-## Architecture
+6. **Curated Intelligence & Proactive Watchdogs**:
+   - Multi-source GDELT + RSS clustering covering AI/ML and broad motorsport disciplines (F1, WEC, IMSA, GT World, MotoGP) with importance and personalized relevance scoring.
+   - Background cron endpoints for Morning Sync, Deadline Watchdog, and Evening Reviews.
 
-One Next.js app uses Prisma/PostgreSQL and server-only API routes. `lib/agent.ts` is the context/priority orchestration seam; provider clients should be added there or in `lib/providers/`, using only server-side environment variables. Calendar mutations must first create a pending confirmation record.
+---
 
-## Configuration-gated production checks
+## Local Setup & Quickstart
 
-The local V1 is functional with PostgreSQL and GDELT. Before public deployment, configure a single-user authentication provider, Gemini/Groq keys, Google OAuth, notification permissions, and PWA icons. These integrations are intentionally marked disconnected until their secrets and permissions are actually supplied; Watchtower never reports a fabricated connection.
+### Prerequisites
+- Node.js 18+ (tested on Node.js 22 LTS)
+- PostgreSQL database
 
-See [docs/INTEGRATION_CHECKLIST.md](docs/INTEGRATION_CHECKLIST.md), [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and [docs/V1_ACCEPTANCE_TESTS.md](docs/V1_ACCEPTANCE_TESTS.md).
+### Installation
+1. Clone the repository and install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Add your PostgreSQL connection string to `DATABASE_URL` and generate a 32+ character string for `SESSION_SECRET`.
+
+3. Generate the Prisma client and apply schema:
+   ```bash
+   npm run db:generate
+   npm run db:migrate
+   ```
+
+4. *(Optional)* Seed initial development data:
+   ```bash
+   npm run db:seed
+   ```
+
+5. Run the development server:
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to access the command center.
+
+On Windows, you can double-click `start-watchtower.bat` or run `.\Start-Watchtower.ps1` from PowerShell to launch the environment automatically.
+
+---
+
+## Test Suite & Verification
+
+Watchtower V2 includes automated test suites covering encryption, deterministic priority math, 3-tier permission guardrails, daily planning, retrieval, and end-to-end acceptance tests:
+
+```bash
+# Run unit and acceptance test suite
+npm test
+
+# Run Next.js production build verification
+npm run build
+```
+
+---
+
+## Production Deployment
+
+- **Hosting**: Compatible with Vercel and hosted PostgreSQL (e.g. Neon, Supabase).
+- **Security**: Server-only API keys (`GEMINI_API_KEY`, `GROQ_API_KEY`, `SESSION_SECRET`, `GOOGLE_CLIENT_SECRET`) are never exposed to browser bundles.
+- **Scheduled Automations**: Triggerable via deployment schedulers (e.g., Vercel Cron) targeting `/api/cron/morning-sync`, `/api/cron/deadline-watch`, and `/api/cron/evening-review` using `CRON_SECRET` authentication.
+
+See [`Watchtower_V2_Docs`](Watchtower_V2_Docs/) for in-depth engineering specifications, API contracts, and security guidelines.

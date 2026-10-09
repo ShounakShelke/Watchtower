@@ -1,16 +1,63 @@
 import { Priority, TaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { user } from "@/lib/data";
+import { calculateTaskScore } from "@/lib/priority";
+import { processAgentMessage } from "@/lib/agent/orchestrator";
 
-type Recommendation = { id:string; title:string; project:string; priority:Priority; score:number; reason:string; estimatedMinutes:number|null };
-const weights: Record<Priority,number>={CRITICAL:45,HIGH:30,MEDIUM:18,LOW:8};
-export async function rankedTasks(): Promise<Recommendation[]> { const u=await user(); const tasks=await prisma.task.findMany({where:{userId:u.id,status:{in:[TaskStatus.TODO,TaskStatus.IN_PROGRESS]}},include:{project:true}}); const now=Date.now(); return tasks.map(t=>{ const days=t.dueDate ? Math.ceil((t.dueDate.getTime()-now)/86400000) : 30; const urgency=t.dueDate ? Math.max(0,35-Math.max(days,0)*5)+(days<0?20:0):0; const score=weights[t.priority]+urgency+(t.status==="IN_PROGRESS"?8:0); const deadline=t.dueDate ? (days<=0?"overdue":days===1?"due tomorrow":`due in ${days} days`) : "no deadline"; return {id:t.id,title:t.title,project:t.project?.name||"Unassigned",priority:t.priority,score,estimatedMinutes:t.estimatedMinutes,reason:`${t.priority.toLowerCase()} priority; ${deadline}${t.status==="IN_PROGRESS"?"; already in progress":""}.`}; }).sort((a,b)=>b.score-a.score); }
-export async function handleAgent(message:string) { const text=message.trim(); const lower=text.toLowerCase(); const ranked=await rankedTasks(); const best=ranked[0];
- if (/what should|plan my day|free|work on now/.test(lower)) return best ? {kind:"recommendation",message:`Your best next action is ${best.title}. ${best.reason}`,recommendation:best,alternatives:ranked.slice(1,3)} : {kind:"rest",message:"No open tasks are currently ranked. You have permission to stop, rest, or capture what matters next."};
- if (/tired|take a break|rest/.test(lower)) return {kind:"rest",message:"Take a proper break. There is no value in manufacturing another task while your energy is low.",alternatives:ranked.slice(0,2)};
- if (/don't want to attend|dont want to attend|skip (this )?class/.test(lower)) return {kind:"confirmation",message:"Class conflict detected. Watchtower will not modify your calendar without confirmation. If you skip it, use the available time for one of these internal options.",alternatives:ranked.slice(0,3),externalAction:{type:"calendar_change",status:"PENDING_CONFIRMATION"}};
- if (/weekly review|accomplish(ed)? this week/.test(lower)) { const u=await user(); const since=new Date(Date.now()-7*86400000); const [done,activity]=await Promise.all([prisma.task.count({where:{userId:u.id,status:"DONE",completedAt:{gte:since}}}),prisma.activity.aggregate({where:{userId:u.id,createdAt:{gte:since}},_sum:{durationMinutes:true}})]); return {kind:"review",message:`Weekly review: ${done} tasks completed and ${activity._sum.durationMinutes||0} focused minutes recorded. ${best?`Next priority: ${best.title}.`:"No urgent work is open."}`}; }
- const createMatch=lower.match(/(?:create (?:a )?task|need to|remind me to)\s+(.+)/); if(createMatch) { const u=await user(); const title=createMatch[1].replace(/\s+by\s+.+$/i,"").trim(); const task=await prisma.task.create({data:{userId:u.id,title,source:"agent",priority:"MEDIUM"}}); return {kind:"action",message:`Created internal task: ${task.title}. Add a due date or project from Tasks when you are ready.`,task}; }
- if (/finished|worked on|update/.test(lower)) return {kind:"progress",message:"I can record that progress. Please name the project or task and what changed; this V1 only applies updates when the target is unambiguous."};
- return {kind:"answer",message:"I can plan your day, rank your tasks, create internal tasks, prepare calendar actions for confirmation, record focus, or generate a weekly review. Try: “what should I work on now?”"};
+export type Recommendation = {
+  id: string;
+  title: string;
+  project: string;
+  priority: Priority;
+  score: number;
+  reason: string;
+  estimatedMinutes: number | null;
+};
+
+export async function rankedTasks(): Promise<Recommendation[]> {
+  const u = await user();
+  const tasks = await prisma.task.findMany({
+    where: {
+      userId: u.id,
+      status: { in: [TaskStatus.TODO, TaskStatus.IN_PROGRESS] },
+    },
+    include: { project: true },
+  });
+
+  const now = Date.now();
+  return tasks
+    .map((t) => {
+      const { score, reason } = calculateTaskScore(
+        {
+          priority: t.priority as any,
+          dueDate: t.dueDate,
+          status: t.status as any,
+          estimatedMinutes: t.estimatedMinutes,
+        },
+        now
+      );
+
+      return {
+        id: t.id,
+        title: t.title,
+        project: t.project?.name || "Unassigned",
+        priority: t.priority,
+        score,
+        estimatedMinutes: t.estimatedMinutes,
+        reason,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+export async function handleAgent(message: string) {
+  const u = await user();
+  const res = await processAgentMessage(u.id, message);
+  return {
+    kind: res.pendingConfirmations && res.pendingConfirmations.length > 0 ? "confirmation" : "answer",
+    message: res.message,
+    recommendation: res.recommendation,
+    alternatives: res.alternatives,
+    externalAction: res.pendingConfirmations?.[0] ? { status: "PENDING_CONFIRMATION" } : undefined,
+  };
 }

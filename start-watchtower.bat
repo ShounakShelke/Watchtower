@@ -3,14 +3,16 @@ setlocal
 cd /d "%~dp0"
 
 echo.
-echo  WATCHTOWER V1 - LOCAL LAUNCHER
+echo  WATCHTOWER V2 - LOCAL LAUNCHER
 echo.
 
 if not exist ".env.local" (
-  echo ERROR: .env.local is missing.
-  echo Copy .env.example to .env.local and configure DATABASE_URL first.
-  pause
-  exit /b 1
+  if not exist ".env" (
+    echo ERROR: No environment configuration found (.env.local or .env).
+    echo Copy .env.example to .env.local and configure DATABASE_URL first.
+    pause
+    exit /b 1
+  )
 )
 
 if not exist "node_modules" (
@@ -24,7 +26,7 @@ call npm run db:generate
 if errorlevel 1 goto :failed
 
 echo.
-echo Starting Watchtower at http://localhost:3000
+echo Starting Watchtower V2 at http://localhost:3000
 echo Keep this window open while using Watchtower.
 echo.
 start "" http://localhost:3000
@@ -33,6 +35,6 @@ exit /b %errorlevel%
 
 :failed
 echo.
-echo Watchtower could not start. Review the error above.
+echo Watchtower V2 could not start. Review the error above.
 pause
 exit /b 1
